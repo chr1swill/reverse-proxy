@@ -22,6 +22,7 @@ func main() {
     log.Printf("request URI: %s\n", r.RequestURI)
 
     var host string 
+    // modify this so it can be some sort of config or command line args
     switch r.Host {
       case "localhost:8080": {
         host = "0.0.0.0:42069" 
