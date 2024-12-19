@@ -2,4 +2,4 @@
 
 set -xe
 
-go build -o main main.go
+gcc -o main main.c
