@@ -37,7 +37,7 @@ func newTarget(tc *targetConfig) (*httputil.ReverseProxy, tls.Certificate, error
 
 	cert, err := tls.LoadX509KeyPair(tc.CertFile, tc.KeyFile)
 	if err != nil {
-		log.Fatalf("Error loading certificate for aristokicks.ca: %s\n", err)
+		log.Fatalf("Error loading certificate for %s: %s\n", tc.Host, err)
 		return nil, tls.Certificate{}, err
 	}
 	return reverseProxy, cert, nil
@@ -45,11 +45,11 @@ func newTarget(tc *targetConfig) (*httputil.ReverseProxy, tls.Certificate, error
 
 func validateFlags(host, targetUrl, certFile, keyFile *string) error {
 	if *host == "" {
-		return fmt.Errorf("host name invalid")
+    return fmt.Errorf("host name invalid: %s", *host)
 	}
 
 	if *targetUrl == "" {
-		return fmt.Errorf("target url invalid")
+    return fmt.Errorf("target url invalid: %s", *targetUrl)
 	}
 
 	if _, err := os.Stat(*certFile); err != nil {
@@ -76,6 +76,7 @@ type HostHandler struct {
 }
 
 func main() {
+  fmt.Println("")
 	var configs []targetConfig
 
 	host := flag.String("host", "", "Host domain including port that the reverse proxy will receive request from: <domain-name.tld>")
@@ -86,6 +87,7 @@ func main() {
 	flag.Parse()
 
 	if err := validateFlags(host, targetUrl, certFile, keyFile); err != nil {
+    log.Printf("Error with flags: %s\n", err)
 		cliUssageMsg()
 		return
 	}
@@ -107,16 +109,18 @@ func main() {
 			targetUrl = &os.Args[i+1]
 			certFile = &os.Args[i+2]
 			keyFile = &os.Args[i+3]
+      log.Printf("host=%s, targeturl=%s, certfile=%s, keyfile=%s\n", *host, *targetUrl,  *certFile, *keyFile)
 
 			if err := validateFlags(host, targetUrl, certFile, keyFile); err != nil {
-				cliUssageMsg()
-				return
+        log.Printf("Error with flags: %s\n", err)
+        cliUssageMsg()
+        return
 			}
 
 			configs = append(configs,
 				targetConfig{
-					Host:      *host,
 					TargetUrl: *targetUrl,
+					Host:      *host,
 					CertFile:  *certFile,
 					KeyFile:   *keyFile,
 				})
