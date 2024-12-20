@@ -31,7 +31,6 @@ func newTarget(tc *targetConfig) (*httputil.ReverseProxy, tls.Certificate, error
 		return nil, tls.Certificate{}, err
 	}
 
-	// certAristo, err := tls.LoadX509KeyPair("path/to/aristokicks/cert.pem", "path/to/aristokicks/key.pem")
 	cert, err := tls.LoadX509KeyPair(tc.CertFile, tc.KeyFile)
 	if err != nil {
 		log.Fatalf("Error loading certificate for aristokicks.ca: %s\n", err)
