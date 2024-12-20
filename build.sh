@@ -2,4 +2,10 @@
 
 set -xe
 
-go build -o main main.go
+BIN=bin
+
+if [ ! -d "$BIN" ]; then
+  mkdir -p "$BIN"
+fi
+
+go build -o ${BIN}/main main.go
