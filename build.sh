@@ -3,9 +3,12 @@
 set -xe
 
 BIN=bin
+FILE=reverse-proxy
 
 if [ ! -d "$BIN" ]; then
-  mkdir -p "$BIN"
+  rm -rf "$BIN"
 fi
 
-go build -o ${BIN}/main main.go
+mkdir -p "$BIN"
+
+go build -o ${BIN}/${FILE} ${FILE}.go
