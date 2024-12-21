@@ -184,6 +184,13 @@ func toTargetConfig(collectionOfTargetSets [][ARGS_IN_TARGET_SET]string) []targe
 	return collectionOfTargetConfigs
 }
 
+func loggerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%s %s %s\n", r.RemoteAddr, r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	if (len(os.Args)-1)%4 != 0 {
 		log.Printf("Malformated args, all [target-sets] must contain <HOST> <TARGETURL> <CERTFILE> <KEYFILE>\n")
@@ -219,7 +226,7 @@ func main() {
 
 	server = &http.Server{
 		Addr: PORT,
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		Handler: loggerMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			for i := range len(hostHandlers) {
 				if hostHandlers[i].Host != r.Host {
 					continue
@@ -229,7 +236,7 @@ func main() {
 				}
 			}
 			http.Error(w, "Not Found", http.StatusNotFound)
-		}),
+		})),
 	}
 
 	server.TLSConfig = &tls.Config{
@@ -237,7 +244,7 @@ func main() {
 		MinVersion:   tls.VersionTLS13,
 	}
 
-	log.Println("Reverse Proxy listening for connections on %s", PORT)
+	log.Printf("Reverse Proxy listening for connections on %s", PORT)
 	if err := server.ListenAndServeTLS("", ""); err != nil {
 		log.Fatalf("Error listening: %s\n", err)
 		return
