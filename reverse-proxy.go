@@ -45,11 +45,11 @@ func newTarget(tc *targetConfig) (*httputil.ReverseProxy, tls.Certificate, error
 
 func validateFlags(host, targetUrl, certFile, keyFile *string) error {
 	if *host == "" {
-    return fmt.Errorf("host name invalid: %s", *host)
+		return fmt.Errorf("host name invalid: %s", *host)
 	}
 
 	if *targetUrl == "" {
-    return fmt.Errorf("target url invalid: %s", *targetUrl)
+		return fmt.Errorf("target url invalid: %s", *targetUrl)
 	}
 
 	if _, err := os.Stat(*certFile); err != nil {
@@ -63,11 +63,23 @@ func validateFlags(host, targetUrl, certFile, keyFile *string) error {
 }
 
 func cliUssageMsg() {
-	fmt.Println("Ussage:")
-	fmt.Println("\t ./reverse-proxy --host=domain-name.tld \\ #Host domain including port that the reverse proxy will receive request from")
-	fmt.Println("\t --targeturl=http://localhost:8080 \\ #The url that the reverse proxy will forward request from the host too")
-	fmt.Println("\t --certfile=/path/to/domain/cert.pem \\ #Path to your tls certificate file")
-	fmt.Println("\t --keyfile=/path/to/domain/key.pem #Path to your tls key file")
+	fmt.Println("")
+	fmt.Println("Usage: ./reverse-proxy [target-set] [target-set] ...")
+	fmt.Println("")
+  fmt.Println("\t[target-set] := <HOST> <TARGETURL> <CERTFILE> <KEYFILE>")
+  fmt.Println("")
+  fmt.Println("\t--host      : Domain the reverse proxy will receive request on behave of")
+	fmt.Println("\t--targeturl : The url reverse proxy will forward the request too")
+	fmt.Println("\t--certfile  : Path to your tls certificate file")
+	fmt.Println("\t--keyfile   : Path to your tls private key file")
+	fmt.Println("")
+	fmt.Println("Example:")
+	fmt.Println("\t./reverse-proxy \\")
+	fmt.Println("\t--host=domain.tld \\")
+	fmt.Println("\t--targeturl=http://localhost:8080 \\")
+	fmt.Println("\t--certfile=/path/to/domain/cert.pem \\")
+	fmt.Println("\t--keyfile=/path/to/domain/privkey.pem")
+  fmt.Println("")
 }
 
 type HostHandler struct {
@@ -75,9 +87,16 @@ type HostHandler struct {
 	Proxy *httputil.ReverseProxy
 }
 
+//TODO: do manual parsing of args with os.Args and possibly string.StripPrefix or something like that
+//so you can catch errors in the target-sets as they arise
 func main() {
-  fmt.Println("")
 	var configs []targetConfig
+
+  if (len(os.Args) - 1) % 4 != 0 {
+    log.Printf("Malformated args, all [target-sets] must contain <HOST> <TARGETURL> <CERTFILE> <KEYFILE>\n")
+  }
+  log.Printf("number of command line args: %d\n", len(os.Args))
+  return
 
 	host := flag.String("host", "", "Host domain including port that the reverse proxy will receive request from: <domain-name.tld>")
 	targetUrl := flag.String("targeturl", "", "The url that the reverse proxy will forward request from the host too: <http://localhost:8080>")
@@ -87,7 +106,7 @@ func main() {
 	flag.Parse()
 
 	if err := validateFlags(host, targetUrl, certFile, keyFile); err != nil {
-    log.Printf("Error with flags: %s\n", err)
+		log.Printf("Error with flags: %s\n", err)
 		cliUssageMsg()
 		return
 	}
@@ -109,12 +128,12 @@ func main() {
 			targetUrl = &os.Args[i+1]
 			certFile = &os.Args[i+2]
 			keyFile = &os.Args[i+3]
-      log.Printf("host=%s, targeturl=%s, certfile=%s, keyfile=%s\n", *host, *targetUrl,  *certFile, *keyFile)
+			log.Printf("host=%s, targeturl=%s, certfile=%s, keyfile=%s\n", *host, *targetUrl, *certFile, *keyFile)
 
 			if err := validateFlags(host, targetUrl, certFile, keyFile); err != nil {
-        log.Printf("Error with flags: %s\n", err)
-        cliUssageMsg()
-        return
+				log.Printf("Error with flags: %s\n", err)
+				cliUssageMsg()
+				return
 			}
 
 			configs = append(configs,
