@@ -125,7 +125,6 @@ func parseArgsToTargetSets() ([][4]string, error) {
 	collectionOfTargetSets := collectTargetSets()
 	for i := range len(collectionOfTargetSets) {
 		foundHost, foundTargetUrl, foundCertFile, foundKeyFile := false, false, false, false
-    fmt.Printf("current targetSet: %v\n", collectionOfTargetSets[i])
 
 		for j := range ARGS_IN_TARGET_SET {
 			currentArg := collectionOfTargetSets[i][j]
