@@ -12,6 +12,12 @@ import (
 	"strings"
 )
 
+func assert(condition bool, message string) {
+	if !condition {
+		log.Fatalf(message)
+	}
+}
+
 func newReverseProxy(target string) (*httputil.ReverseProxy, error) {
 	url, err := url.Parse(target)
 	if err != nil {
@@ -43,21 +49,21 @@ func newTarget(tc *targetConfig) (*httputil.ReverseProxy, tls.Certificate, error
 	return reverseProxy, cert, nil
 }
 
-func validateFlags(host, targetUrl, certFile, keyFile *string) error {
-	if *host == "" {
-		return fmt.Errorf("host name invalid: %s", *host)
+func validateTargetSet(host, targetUrl, certFile, keyFile string) error {
+	if host == "" {
+		return fmt.Errorf("host name invalid: %s", host)
 	}
 
-	if *targetUrl == "" {
-		return fmt.Errorf("target url invalid: %s", *targetUrl)
+	if targetUrl == "" {
+		return fmt.Errorf("target url invalid: %s", targetUrl)
 	}
 
-	if _, err := os.Stat(*certFile); err != nil {
-		return fmt.Errorf("certfile %s invalid: %s", *certFile, err)
+	if _, err := os.Stat(certFile); err != nil {
+		return fmt.Errorf("certfile %s invalid: %s", certFile, err)
 	}
 
-	if _, err := os.Stat(*keyFile); err != nil {
-		return fmt.Errorf("keyfile %s invalid: %s", *keyFile, err)
+	if _, err := os.Stat(keyFile); err != nil {
+		return fmt.Errorf("keyfile %s invalid: %s", keyFile, err)
 	}
 	return nil
 }
@@ -66,9 +72,9 @@ func cliUssageMsg() {
 	fmt.Println("")
 	fmt.Println("Usage: ./reverse-proxy [target-set] [target-set] ...")
 	fmt.Println("")
-  fmt.Println("\t[target-set] := <HOST> <TARGETURL> <CERTFILE> <KEYFILE>")
-  fmt.Println("")
-  fmt.Println("\t--host      : Domain the reverse proxy will receive request on behave of")
+	fmt.Println("\t[target-set] := <HOST> <TARGETURL> <CERTFILE> <KEYFILE>")
+	fmt.Println("")
+	fmt.Println("\t--host      : Domain the reverse proxy will receive request on behave of")
 	fmt.Println("\t--targeturl : The url reverse proxy will forward the request too")
 	fmt.Println("\t--certfile  : Path to your tls certificate file")
 	fmt.Println("\t--keyfile   : Path to your tls private key file")
@@ -79,7 +85,7 @@ func cliUssageMsg() {
 	fmt.Println("\t--targeturl=http://localhost:8080 \\")
 	fmt.Println("\t--certfile=/path/to/domain/cert.pem \\")
 	fmt.Println("\t--keyfile=/path/to/domain/privkey.pem")
-  fmt.Println("")
+	fmt.Println("")
 }
 
 type HostHandler struct {
@@ -87,70 +93,170 @@ type HostHandler struct {
 	Proxy *httputil.ReverseProxy
 }
 
-//TODO: do manual parsing of args with os.Args and possibly string.StripPrefix or something like that
-//so you can catch errors in the target-sets as they arise
-func main() {
-	var configs []targetConfig
+const ARGS_IN_TARGET_SET = 4
 
-  if (len(os.Args) - 1) % 4 != 0 {
-    log.Printf("Malformated args, all [target-sets] must contain <HOST> <TARGETURL> <CERTFILE> <KEYFILE>\n")
-  }
-  log.Printf("number of command line args: %d\n", len(os.Args))
-  return
+func collectTargetSets() [][ARGS_IN_TARGET_SET]string {
+	collectedTargetSets := make([][ARGS_IN_TARGET_SET]string, 0, (len(os.Args)-1)/ARGS_IN_TARGET_SET)
 
-	host := flag.String("host", "", "Host domain including port that the reverse proxy will receive request from: <domain-name.tld>")
-	targetUrl := flag.String("targeturl", "", "The url that the reverse proxy will forward request from the host too: <http://localhost:8080>")
-	certFile := flag.String("certfile", "", "Path to your tls certificate file: /path/to/domain/cert.pem")
-	keyFile := flag.String("keyfile", "", "Path to your tls key file: /path/to/domain/key.pem")
+	assert((len(os.Args)-1)%4 == 0,
+		fmt.Sprintf("Not able to process input, length of argurment is not divisible by %d\n",
+			ARGS_IN_TARGET_SET))
 
-	flag.Parse()
+	args := os.Args[1:]
 
-	if err := validateFlags(host, targetUrl, certFile, keyFile); err != nil {
-		log.Printf("Error with flags: %s\n", err)
-		cliUssageMsg()
-		return
+	for i := 0; i < len(args)/ARGS_IN_TARGET_SET; i++ {
+		var targetSet [ARGS_IN_TARGET_SET]string
+		for j := range ARGS_IN_TARGET_SET {
+			targetSet[j] = args[(i*ARGS_IN_TARGET_SET)+j]
+		}
+		collectedTargetSets = append(collectedTargetSets, targetSet)
 	}
 
-	configs = append(configs,
-		targetConfig{
-			Host:      *host,
-			TargetUrl: *targetUrl,
-			CertFile:  *certFile,
-			KeyFile:   *keyFile,
-		})
+	return collectedTargetSets
+}
 
-	for i := 3; i < len(os.Args); i += 4 {
-		if os.Args[i] != "" && strings.HasPrefix(os.Args[i], "--host=") &&
-			os.Args[i+1] != "" && strings.HasPrefix(os.Args[i+1], "--targeturl=") &&
-			os.Args[i+2] != "" && strings.HasPrefix(os.Args[i+2], "--certfile=") &&
-			os.Args[i+3] != "" && strings.HasPrefix(os.Args[i+3], "--keyfile=") {
-			host = &os.Args[i]
-			targetUrl = &os.Args[i+1]
-			certFile = &os.Args[i+2]
-			keyFile = &os.Args[i+3]
-			log.Printf("host=%s, targeturl=%s, certfile=%s, keyfile=%s\n", *host, *targetUrl, *certFile, *keyFile)
+func parseArgsToTargetSets() ([][4]string, error) {
+	numberOfArgs := len(os.Args) - 1
+	if numberOfArgs%ARGS_IN_TARGET_SET != 0 {
+		return nil, fmt.Errorf("number of args should be divisible by four but there was a remainder of %d\n", numberOfArgs%4)
+	}
 
-			if err := validateFlags(host, targetUrl, certFile, keyFile); err != nil {
-				log.Printf("Error with flags: %s\n", err)
-				cliUssageMsg()
-				return
+	collectionOfTargetSets := collectTargetSets()
+	for i := range len(collectionOfTargetSets) {
+		foundHost, foundTargetUrl, foundCertFile, foundKeyFile := false, false, false, false
+
+		for j := range ARGS_IN_TARGET_SET {
+			currentArg := collectionOfTargetSets[i][j]
+			if strings.HasPrefix(currentArg, "--host=") {
+				foundHost = true
+			} else if strings.HasPrefix(currentArg, "--targetUrl=") {
+				foundTargetUrl = true
+			} else if strings.HasPrefix(currentArg, "--certfile=") {
+				foundCertFile = true
+			} else if strings.HasPrefix(currentArg, "--keyfile=") {
+				foundKeyFile = true
 			}
+		}
 
-			configs = append(configs,
-				targetConfig{
-					TargetUrl: *targetUrl,
-					Host:      *host,
-					CertFile:  *certFile,
-					KeyFile:   *keyFile,
-				})
+		if !foundHost {
+			return nil, fmt.Errorf("syntax error parsing target-set at index: %d missing --host=<?> arg\n", i)
+		}
+
+		if !foundTargetUrl {
+			return nil, fmt.Errorf("syntax error parsing target-set at index: %d missing --targeturl=<?> arg\n", i)
+		}
+
+		if !foundCertFile {
+			return nil, fmt.Errorf("syntax error parsing target-set at index: %d missing --certfile=<?> arg\n", i)
+		}
+
+		if !foundKeyFile {
+			return nil, fmt.Errorf("syntax error parsing target-set at index: %d missing --keyfile=<?> arg\n", i)
 		}
 	}
+
+	return collectionOfTargetSets, nil
+}
+
+func toTargetConfig(collectionOfTargetSets [][ARGS_IN_TARGET_SET]string) []targetConfig {
+	collectionOfTargetConfigs := make([]targetConfig, 0, len(collectionOfTargetSets))
+
+	for i := range len(collectionOfTargetSets) {
+		tc := &targetConfig{}
+
+		for j := range ARGS_IN_TARGET_SET {
+			currentSetMember := collectionOfTargetSets[i][j]
+
+			if strings.HasPrefix(currentSetMember, "--host=") {
+				tc.Host = strings.TrimPrefix(currentSetMember, "--host=")
+			} else if strings.HasPrefix(currentSetMember, "--targetUrl=") {
+				tc.TargetUrl = strings.TrimPrefix(currentSetMember, "--targetUrl=")
+			} else if strings.HasPrefix(currentSetMember, "--certfile=") {
+				tc.CertFile = strings.TrimPrefix(currentSetMember, "--certfile=")
+			} else if strings.HasPrefix(currentSetMember, "--keyfile=") {
+				tc.KeyFile = strings.TrimPrefix(currentSetMember, "--keyfile=")
+			}
+		}
+
+		collectionOfTargetConfigs = append(collectionOfTargetConfigs, *tc)
+	}
+	return collectionOfTargetConfigs
+}
+
+// TODO: do manual parsing of args with os.Args and possibly string.StripPrefix or something like that
+// so you can catch errors in the target-sets as they arise
+func main() {
+	if (len(os.Args)-1)%4 != 0 {
+		log.Printf("Malformated args, all [target-sets] must contain <HOST> <TARGETURL> <CERTFILE> <KEYFILE>\n")
+	}
+
+	targetSets, err := parseArgsToTargetSets()
+	if err != nil {
+		log.Printf("Error with target-sets: %s\n", err)
+	}
+
+	configs := toTargetConfig(targetSets)
+	// host := flag.String("host", "", "Host domain including port that the reverse proxy will receive request from: <domain-name.tld>")
+	// targetUrl := flag.String("targeturl", "", "The url that the reverse proxy will forward request from the host too: <http://localhost:8080>")
+	// certFile := flag.String("certfile", "", "Path to your tls certificate file: /path/to/domain/cert.pem")
+	// keyFile := flag.String("keyfile", "", "Path to your tls key file: /path/to/domain/key.pem")
+
+	// flag.Parse()
+
+	//if err := validateFlags(host, targetUrl, certFile, keyFile); err != nil {
+	//	log.Printf("Error with flags: %s\n", err)
+	//	cliUssageMsg()
+	//	return
+	//}
+
+	// configs = append(configs,
+	//	targetConfig{
+	//		Host:      *host,
+	//		TargetUrl: *targetUrl,
+	//		CertFile:  *certFile,
+	//		KeyFile:   *keyFile,
+	//	})
+
+	// for i := 3; i < len(os.Args); i += 4 {
+	//	if os.Args[i] != "" && strings.HasPrefix(os.Args[i], "--host=") &&
+	//		os.Args[i+1] != "" && strings.HasPrefix(os.Args[i+1], "--targeturl=") &&
+	//		os.Args[i+2] != "" && strings.HasPrefix(os.Args[i+2], "--certfile=") &&
+	//		os.Args[i+3] != "" && strings.HasPrefix(os.Args[i+3], "--keyfile=") {
+	//		host = &os.Args[i]
+	//		targetUrl = &os.Args[i+1]
+	//		certFile = &os.Args[i+2]
+	//		keyFile = &os.Args[i+3]
+	//		log.Printf("host=%s, targeturl=%s, certfile=%s, keyfile=%s\n", *host, *targetUrl, *certFile, *keyFile)
+
+	//		if err := validateFlags(host, targetUrl, certFile, keyFile); err != nil {
+	//			log.Printf("Error with flags: %s\n", err)
+	//			cliUssageMsg()
+	//			return
+	//		}
+
+	//		configs = append(configs,
+	//			targetConfig{
+	//				TargetUrl: *targetUrl,
+	//				Host:      *host,
+	//				CertFile:  *certFile,
+	//				KeyFile:   *keyFile,
+	//			})
+	//	}
+	//}
 
 	var server *http.Server
 	var hostHandlers []HostHandler
 	var certs []tls.Certificate
 
 	for i := range len(configs) {
+		if err := validateTargetSet(configs[i].Host,
+			configs[i].TargetUrl, configs[i].CertFile,
+			configs[i].KeyFile); err != nil {
+			log.Printf("Error with target-set %d: %s\n\n", i, err)
+			cliUssageMsg()
+			return
+		}
+
 		proxy, cert, err := newTarget(&configs[i])
 		if err != nil {
 			log.Fatalf("Failed to create new reverse proxy target for host %s: %s\n", configs[i].Host, err)
