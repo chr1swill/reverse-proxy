@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+const PORT = ":443"
+
 func assert(condition bool, message string) {
 	if !condition {
 		log.Fatalf(message)
@@ -217,7 +219,7 @@ func main() {
 	}
 
 	server = &http.Server{
-		Addr: ":443",
+		Addr: PORT,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			for i := range len(hostHandlers) {
 				if hostHandlers[i].Host != r.Host {
@@ -236,7 +238,7 @@ func main() {
 		MinVersion:   tls.VersionTLS13,
 	}
 
-	log.Println("Reverse Proxy listening for connections on :443")
+	log.Println("Reverse Proxy listening for connections on %s", PORT)
 	if err := server.ListenAndServeTLS("", ""); err != nil {
 		log.Fatalf("Error listening: %s\n", err)
 		return
