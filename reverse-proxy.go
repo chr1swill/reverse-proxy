@@ -117,18 +117,19 @@ func collectTargetSets() [][ARGS_IN_TARGET_SET]string {
 func parseArgsToTargetSets() ([][4]string, error) {
 	numberOfArgs := len(os.Args) - 1
 	if numberOfArgs%ARGS_IN_TARGET_SET != 0 {
-		return nil, fmt.Errorf("number of args should be divisible by four but there was a remainder of %d\n", numberOfArgs%4)
+		return nil, fmt.Errorf("number of args should be divisible by four but there was a remainder of %d", numberOfArgs%4)
 	}
 
 	collectionOfTargetSets := collectTargetSets()
 	for i := range len(collectionOfTargetSets) {
 		foundHost, foundTargetUrl, foundCertFile, foundKeyFile := false, false, false, false
+    fmt.Printf("current targetSet: %v\n", collectionOfTargetSets[i])
 
 		for j := range ARGS_IN_TARGET_SET {
 			currentArg := collectionOfTargetSets[i][j]
 			if strings.HasPrefix(currentArg, "--host=") {
 				foundHost = true
-			} else if strings.HasPrefix(currentArg, "--targetUrl=") {
+			} else if strings.HasPrefix(currentArg, "--targeturl=") {
 				foundTargetUrl = true
 			} else if strings.HasPrefix(currentArg, "--certfile=") {
 				foundCertFile = true
@@ -138,19 +139,19 @@ func parseArgsToTargetSets() ([][4]string, error) {
 		}
 
 		if !foundHost {
-			return nil, fmt.Errorf("syntax error parsing target-set at index: %d missing --host=<?> arg\n", i)
+			return nil, fmt.Errorf("syntax error parsing target-set at index: %d missing --host=<?> arg", i)
 		}
 
 		if !foundTargetUrl {
-			return nil, fmt.Errorf("syntax error parsing target-set at index: %d missing --targeturl=<?> arg\n", i)
+			return nil, fmt.Errorf("syntax error parsing target-set at index: %d missing --targeturl=<?> arg", i)
 		}
 
 		if !foundCertFile {
-			return nil, fmt.Errorf("syntax error parsing target-set at index: %d missing --certfile=<?> arg\n", i)
+			return nil, fmt.Errorf("syntax error parsing target-set at index: %d missing --certfile=<?> arg", i)
 		}
 
 		if !foundKeyFile {
-			return nil, fmt.Errorf("syntax error parsing target-set at index: %d missing --keyfile=<?> arg\n", i)
+			return nil, fmt.Errorf("syntax error parsing target-set at index: %d missing --keyfile=<?> arg", i)
 		}
 	}
 
@@ -168,8 +169,8 @@ func toTargetConfig(collectionOfTargetSets [][ARGS_IN_TARGET_SET]string) []targe
 
 			if strings.HasPrefix(currentSetMember, "--host=") {
 				tc.Host = strings.TrimPrefix(currentSetMember, "--host=")
-			} else if strings.HasPrefix(currentSetMember, "--targetUrl=") {
-				tc.TargetUrl = strings.TrimPrefix(currentSetMember, "--targetUrl=")
+			} else if strings.HasPrefix(currentSetMember, "--targeturl=") {
+				tc.TargetUrl = strings.TrimPrefix(currentSetMember, "--targeturl=")
 			} else if strings.HasPrefix(currentSetMember, "--certfile=") {
 				tc.CertFile = strings.TrimPrefix(currentSetMember, "--certfile=")
 			} else if strings.HasPrefix(currentSetMember, "--keyfile=") {
