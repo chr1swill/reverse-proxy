@@ -183,8 +183,6 @@ func toTargetConfig(collectionOfTargetSets [][ARGS_IN_TARGET_SET]string) []targe
 	return collectionOfTargetConfigs
 }
 
-// TODO: do manual parsing of args with os.Args and possibly string.StripPrefix or something like that
-// so you can catch errors in the target-sets as they arise
 func main() {
 	if (len(os.Args)-1)%4 != 0 {
 		log.Printf("Malformated args, all [target-sets] must contain <HOST> <TARGETURL> <CERTFILE> <KEYFILE>\n")
@@ -195,58 +193,10 @@ func main() {
 		log.Printf("Error with target-sets: %s\n", err)
 	}
 
-	configs := toTargetConfig(targetSets)
-	// host := flag.String("host", "", "Host domain including port that the reverse proxy will receive request from: <domain-name.tld>")
-	// targetUrl := flag.String("targeturl", "", "The url that the reverse proxy will forward request from the host too: <http://localhost:8080>")
-	// certFile := flag.String("certfile", "", "Path to your tls certificate file: /path/to/domain/cert.pem")
-	// keyFile := flag.String("keyfile", "", "Path to your tls key file: /path/to/domain/key.pem")
-
-	// flag.Parse()
-
-	//if err := validateFlags(host, targetUrl, certFile, keyFile); err != nil {
-	//	log.Printf("Error with flags: %s\n", err)
-	//	cliUssageMsg()
-	//	return
-	//}
-
-	// configs = append(configs,
-	//	targetConfig{
-	//		Host:      *host,
-	//		TargetUrl: *targetUrl,
-	//		CertFile:  *certFile,
-	//		KeyFile:   *keyFile,
-	//	})
-
-	// for i := 3; i < len(os.Args); i += 4 {
-	//	if os.Args[i] != "" && strings.HasPrefix(os.Args[i], "--host=") &&
-	//		os.Args[i+1] != "" && strings.HasPrefix(os.Args[i+1], "--targeturl=") &&
-	//		os.Args[i+2] != "" && strings.HasPrefix(os.Args[i+2], "--certfile=") &&
-	//		os.Args[i+3] != "" && strings.HasPrefix(os.Args[i+3], "--keyfile=") {
-	//		host = &os.Args[i]
-	//		targetUrl = &os.Args[i+1]
-	//		certFile = &os.Args[i+2]
-	//		keyFile = &os.Args[i+3]
-	//		log.Printf("host=%s, targeturl=%s, certfile=%s, keyfile=%s\n", *host, *targetUrl, *certFile, *keyFile)
-
-	//		if err := validateFlags(host, targetUrl, certFile, keyFile); err != nil {
-	//			log.Printf("Error with flags: %s\n", err)
-	//			cliUssageMsg()
-	//			return
-	//		}
-
-	//		configs = append(configs,
-	//			targetConfig{
-	//				TargetUrl: *targetUrl,
-	//				Host:      *host,
-	//				CertFile:  *certFile,
-	//				KeyFile:   *keyFile,
-	//			})
-	//	}
-	//}
-
 	var server *http.Server
 	var hostHandlers []HostHandler
 	var certs []tls.Certificate
+	configs := toTargetConfig(targetSets)
 
 	for i := range len(configs) {
 		if err := validateTargetSet(configs[i].Host,

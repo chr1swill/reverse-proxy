@@ -11,4 +11,4 @@ fi
 
 mkdir -p "$BIN"
 
-go build -o ${BIN}/${FILE} ${FILE}.go
+go build -o ${BIN}/${FILE} cmd/${FILE}.go
